@@ -3,7 +3,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const port = Number(process.env.PORT) || 3000;
-const adminKey = "saoirsegandagandahan";
+const adminKey = process.env.ADMIN_KEY;
 const whitelistFile = path.join(__dirname, "whitelist.json");
 
 const blacklist = new Set();

@@ -172,12 +172,14 @@ function dashboardHtml() {
 }
 
 const server=http.createServer(async(req,res)=>{
+  if(req.url==="/rpo") return sendHtml(res,200,dashboardHtml());
+  
   if(req.method!=="POST"){
     res.setHeader("Allow","POST");
     return sendJson(res,405,{error:"Only POST requests are supported"});
   }
 
-  if(req.url==="/rpo") return sendHtml(res,200,dashboardHtml());
+  
 
   if(req.url==="/check.json"){
     const body=await readJson(req,res);

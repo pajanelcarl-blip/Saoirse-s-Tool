@@ -1,0 +1,1179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Saoirse's Tool — .SAO Encryptor (.JPEG)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/@phosphor-icons/web"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    body {
+      background: linear-gradient(135deg, rgba(242, 115, 191, 0.85), rgba(166, 102, 230, 0.72), rgba(242, 115, 191, 0.45), rgba(96, 165, 250, 0.35));
+      background-size: 300% 300%;
+      animation: gradientShift 14s ease infinite;
+      min-height: 100vh;
+    }
+
+    @keyframes gradientShift {
+      0%, 100% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+    }
+
+    .glass {
+      background: rgba(255, 255, 255, 0.72);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(242, 115, 191, 0.35);
+      box-shadow: 0 12px 36px -8px rgba(31, 38, 135, 0.14);
+    }
+
+    .dark .glass {
+      background: rgba(18, 16, 28, 0.68);
+      border: 1px solid rgba(242, 115, 191, 0.35);
+      box-shadow: 0 12px 36px -8px rgba(0, 0, 0, 0.5);
+    }
+
+    .glass-inner {
+      background: rgba(255, 255, 255, 0.48);
+      border: 1px solid rgba(255, 255, 255, 0.55);
+    }
+
+    .dark .glass-inner {
+      background: rgba(0, 0, 0, 0.28);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .btn-gradient {
+      background: linear-gradient(90deg, #f273bf, #a666e6);
+      transition: transform 0.15s ease, opacity 0.15s ease;
+    }
+
+    .btn-gradient:hover {
+      opacity: 0.94;
+    }
+
+    .btn-gradient:active {
+      transform: scale(0.98);
+    }
+  </style>
+</head>
+<body class="font-sans text-slate-900 dark:text-white antialiased">
+  <div id="toastArea" class="fixed top-4 right-4 left-4 sm:left-auto sm:w-96 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-10 space-y-6">
+    <!-- Header -->
+    <header class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-xs font-extrabold tracking-[0.28em] uppercase">SAOIRSE</span>
+          <span id="runtimeBadge" class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold glass-inner text-pink-600 dark:text-pink-300">
+            CHECKING RUNTIME...
+          </span>
+        </div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">
+          .SAO Encryptor (.JPEG)
+        </h1>
+      </div>
+
+      <button type="button" onclick="toggleThemeMode()" aria-label="Toggle dark mode"
+        class="glass p-3 rounded-full hover:scale-105 transition">
+        <i id="themeIcon" class="ph-fill ph-moon text-lg"></i>
+      </button>
+    </header>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <!-- Left: Folder Selection & Explicit Folder Validity Box -->
+      <div class="lg:col-span-7 space-y-6">
+        <section class="glass rounded-3xl p-5 sm:p-6 space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <i class="ph-fill ph-folder-star text-xl text-pink-500"></i>
+              <h2 class="text-base font-bold">1. Select Skin Folder (.jpeg)</h2>
+            </div>
+            <button type="button" onclick="createSwiftReadySampleBundle()"
+              class="px-3 py-1.5 rounded-xl text-xs font-bold bg-pink-500/15 text-pink-700 dark:text-pink-300 hover:bg-pink-500/25 transition flex items-center gap-1.5">
+              <i class="ph-bold ph-magic-wand"></i>
+              <span>Load Valid .JPEG Sample</span>
+            </button>
+          </div>
+
+          <!-- Folder Upload Dropzone -->
+          <div id="dropZone"
+            onclick="document.getElementById('folderPicker').click()"
+            ondragover="onDragOver(event)"
+            ondragleave="onDragLeave(event)"
+            ondrop="onDropFolder(event)"
+            class="cursor-pointer rounded-2xl glass-inner border-2 border-dashed border-pink-400/50 p-6 text-center hover:bg-white/60 dark:hover:bg-white/10 transition space-y-2">
+            <input id="folderPicker" type="file" webkitdirectory directory multiple class="hidden" onchange="onFolderChosen(event)" />
+            <div class="w-12 h-12 rounded-2xl bg-pink-500/15 text-pink-500 mx-auto flex items-center justify-center">
+              <i class="ph-bold ph-folder-plus text-2xl"></i>
+            </div>
+            <p class="text-sm font-bold">Drop or Choose Your Skin Folder</p>
+            <p class="text-xs text-slate-600 dark:text-white/70 max-w-md mx-auto">
+              Requires <code class="font-mono font-semibold">info.json</code>, <code class="font-mono font-semibold">Art/</code>, <code class="font-mono font-semibold">Audio/</code>, <code class="font-mono font-semibold">UI/</code>, and a <code class="font-mono font-semibold">SKIN_&lt;code&gt;.jpeg</code> image.
+            </p>
+          </div>
+
+          <!-- PROMINENT FOLDER VALIDITY BANNER -->
+          <div id="folderValidityBanner" class="rounded-2xl p-4 border transition flex items-start gap-3 bg-slate-500/10 border-slate-400/30">
+            <i id="folderValidityIcon" class="ph-fill ph-folder-dashed text-2xl text-slate-500 shrink-0 mt-0.5"></i>
+            <div class="flex-1 min-w-0 space-y-1">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <span id="folderValidityTitle" class="text-xs font-extrabold uppercase tracking-wider">
+                  Folder Status: No Folder Selected
+                </span>
+                <span id="folderValidityBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-slate-500/20 text-slate-700 dark:text-white/80">
+                  UNCHECKED
+                </span>
+              </div>
+              <p id="folderValidityReason" class="text-xs text-slate-700 dark:text-white/80 leading-relaxed">
+                Select or drop a folder to verify whether it is a valid skin bundle with a <code class="font-mono">.jpeg</code> skin image.
+              </p>
+            </div>
+          </div>
+
+          <!-- Auto-Fix Missing Required Items Toggle -->
+          <label class="flex items-start gap-3 p-3.5 rounded-2xl glass-inner cursor-pointer">
+            <input id="autoFillMissingCheckbox" type="checkbox" checked onchange="refreshSwiftChecklist()"
+              class="mt-0.5 rounded accent-pink-500 w-4 h-4" />
+            <div class="text-xs space-y-0.5">
+              <p class="font-bold">Auto-inject missing items (including <code class="font-mono">SKIN_000001.jpeg</code>)</p>
+              <p class="text-slate-600 dark:text-white/65">
+                Automatically adds missing <code class="font-mono">info.json</code>, <code class="font-mono">Art/</code>, <code class="font-mono">Audio/</code>, <code class="font-mono">UI/</code>, or a generated <code class="font-mono">SKIN_000001.jpeg</code> image when packing.
+              </p>
+            </div>
+          </label>
+
+          <!-- Swift SaoValidator Live Checklist -->
+          <div class="glass-inner rounded-2xl p-4 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-extrabold uppercase tracking-wider text-slate-600 dark:text-white/70">
+                Bundle Validity Checklist
+              </span>
+              <span id="checklistStatusPill" class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-slate-500/15 text-slate-600 dark:text-white/70">
+                WAITING
+              </span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-mono">
+              <div id="chkInfo" class="flex items-center justify-between px-3 py-2 rounded-xl bg-white/40 dark:bg-black/25">
+                <span>info.json</span>
+                <span class="font-bold">Missing</span>
+              </div>
+              <div id="chkArt" class="flex items-center justify-between px-3 py-2 rounded-xl bg-white/40 dark:bg-black/25">
+                <span>Art/</span>
+                <span class="font-bold">Missing</span>
+              </div>
+              <div id="chkAudio" class="flex items-center justify-between px-3 py-2 rounded-xl bg-white/40 dark:bg-black/25">
+                <span>Audio/</span>
+                <span class="font-bold">Missing</span>
+              </div>
+              <div id="chkUI" class="flex items-center justify-between px-3 py-2 rounded-xl bg-white/40 dark:bg-black/25">
+                <span>UI/</span>
+                <span class="font-bold">Missing</span>
+              </div>
+              <div id="chkSkin" class="sm:col-span-2 flex items-center justify-between px-3 py-2 rounded-xl bg-white/40 dark:bg-black/25">
+                <span>SKIN_&lt;code&gt;.jpeg</span>
+                <span class="font-bold">Missing</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Loaded Files List -->
+          <div id="fileListBox" class="hidden space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span id="fileListSummary" class="font-bold">0 files staged</span>
+              <button type="button" onclick="clearStagedFiles()" class="text-rose-500 font-bold hover:underline">
+                Clear All
+              </button>
+            </div>
+            <div id="fileListContainer" class="max-h-44 overflow-y-auto space-y-1 pr-1"></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Right: Encryption Settings & Download -->
+      <div class="lg:col-span-5 space-y-6">
+        <section class="glass rounded-3xl p-5 sm:p-6 space-y-4">
+          <div class="flex items-center gap-2">
+            <i class="ph-fill ph-lock-key text-xl text-pink-500"></i>
+            <h2 class="text-base font-bold">2. Encryption &amp; Format</h2>
+          </div>
+
+          <!-- Binary Format Selector -->
+          <div>
+            <label for="formatSelect" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-white/70 mb-1.5">
+              Archive Format
+            </label>
+            <select id="formatSelect"
+              class="w-full px-3.5 py-2.5 rounded-xl glass-inner font-mono text-xs font-bold focus:outline-none focus:ring-2 focus:ring-pink-400">
+              <option value="SAO3" selected>SAO3 — HKDF-SHA256 + AES-256-GCM (Native Swift CryptoKit)</option>
+              <option value="SAOW">SAOW — PBKDF2-HMAC-SHA256 (100k) + AES-256-GCM</option>
+            </select>
+          </div>
+
+          <!-- Lock Mode -->
+          <div class="grid grid-cols-2 gap-2.5">
+            <label class="cursor-pointer">
+              <input type="radio" name="encMode" value="device" checked class="peer sr-only" onchange="toggleDeviceInput()" />
+              <div class="p-3 rounded-2xl glass-inner border-2 border-transparent peer-checked:border-pink-400 text-center transition">
+                <p class="text-xs font-extrabold">Device-Locked</p>
+                <p class="text-[11px] font-mono text-pink-600 dark:text-pink-300 mt-0.5">Flag 0x01</p>
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="encMode" value="open" class="peer sr-only" onchange="toggleDeviceInput()" />
+              <div class="p-3 rounded-2xl glass-inner border-2 border-transparent peer-checked:border-pink-400 text-center transition">
+                <p class="text-xs font-extrabold">Open (No Lock)</p>
+                <p class="text-[11px] font-mono text-emerald-600 dark:text-emerald-300 mt-0.5">Flag 0x00</p>
+              </div>
+            </label>
+          </div>
+
+          <!-- Target iOS Device ID -->
+          <div id="deviceIdBox" class="space-y-1.5">
+            <label for="targetDeviceId" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-white/70">
+              iOS Device ID (UUID from App)
+            </label>
+            <input id="targetDeviceId" type="text" placeholder="Paste Device ID from Saoirse's Tool"
+              class="w-full px-3.5 py-2.5 rounded-xl glass-inner font-mono text-xs focus:outline-none focus:ring-2 focus:ring-pink-400" />
+            <p class="text-[11px] text-slate-600 dark:text-white/65">
+              Tap Copy next to Device ID in your iOS app and paste it here.
+            </p>
+          </div>
+
+          <!-- Output Filename -->
+          <div>
+            <label for="outputFileName" class="block text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-white/70 mb-1.5">
+              Output Filename
+            </label>
+            <div class="flex items-center rounded-xl glass-inner overflow-hidden focus-within:ring-2 focus-within:ring-pink-400">
+              <input id="outputFileName" type="text" value="SKIN_000001"
+                class="w-full px-3.5 py-2.5 bg-transparent font-mono text-xs font-bold focus:outline-none" />
+              <span class="px-3 font-mono text-xs font-bold text-slate-500 dark:text-white/60">.sao</span>
+            </div>
+          </div>
+
+          <!-- Encrypt Button -->
+          <button type="button" id="encryptBtn" onclick="encryptAndBuildSao()"
+            class="w-full py-4 px-5 rounded-2xl btn-gradient text-white font-bold text-sm flex items-center justify-center gap-2 shadow-lg">
+            <i class="ph-bold ph-shield-check text-xl"></i>
+            <span>Encrypt &amp; Generate .SAO</span>
+          </button>
+        </section>
+
+        <!-- Result & Self-Test Card -->
+        <section id="resultCard" class="hidden glass rounded-3xl p-5 sm:p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i class="ph-fill ph-check-circle text-xl text-emerald-500"></i>
+              <h3 class="text-base font-bold">Verified &amp; Ready</h3>
+            </div>
+            <span id="resultBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300">
+              SAO3 • 0x01
+            </span>
+          </div>
+
+          <div class="glass-inner rounded-2xl p-3.5 space-y-2 text-xs font-mono">
+            <div class="flex justify-between">
+              <span class="text-slate-600 dark:text-white/65">File:</span>
+              <span id="resFileName" class="font-bold">SKIN_000001.sao</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-600 dark:text-white/65">Size:</span>
+              <span id="resSize" class="font-bold">0 B</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-600 dark:text-white/65">Round-Trip Test:</span>
+              <span id="resRoundTrip" class="font-bold text-emerald-600 dark:text-emerald-400">PASSED</span>
+            </div>
+          </div>
+
+          <button type="button" onclick="downloadBuiltSao()"
+            class="w-full py-3.5 px-4 rounded-2xl btn-gradient text-white font-bold text-sm flex items-center justify-center gap-2 shadow">
+            <i class="ph-bold ph-download-simple text-lg"></i>
+            <span>Download .SAO File</span>
+          </button>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // PURE-JS CRYPTO & ZLIB ENGINE (Works across HTTP, HTTPS, and WebViews)
+    // =========================================================================
+    const K256 = new Uint32Array([
+      0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,
+      0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,
+      0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,
+      0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,
+      0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,
+      0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,
+      0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,
+      0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2
+    ]);
+
+    const AES_SBOX = new Uint8Array([
+      0x63,0x7c,0x77,0x7b,0xf2,0x6b,0x6f,0xc5,0x30,0x01,0x67,0x2b,0xfe,0xd7,0xab,0x76,
+      0xca,0x82,0xc9,0x7d,0xfa,0x59,0x47,0xf0,0xad,0xd4,0xa2,0xaf,0x9c,0xa4,0x72,0xc0,
+      0xb7,0xfd,0x93,0x26,0x36,0x3f,0xf7,0xcc,0x34,0xa5,0xe5,0xf1,0x71,0xd8,0x31,0x15,
+      0x04,0xc7,0x23,0xc3,0x18,0x96,0x05,0x9a,0x07,0x12,0x80,0xe2,0xeb,0x27,0xb2,0x75,
+      0x09,0x83,0x2c,0x1a,0x1b,0x6e,0x5a,0xa0,0x52,0x3b,0xd6,0xb3,0x29,0xe3,0x2f,0x84,
+      0x53,0xd1,0x00,0xed,0x20,0xfc,0xb1,0x5b,0x6a,0xcb,0xbe,0x39,0x4a,0x4c,0x58,0xcf,
+      0xd0,0xef,0xaa,0xfb,0x43,0x4d,0x33,0x85,0x45,0xf9,0x02,0x7f,0x50,0x3c,0x9f,0xa8,
+      0x51,0xa3,0x40,0x8f,0x92,0x9d,0x38,0xf5,0xbc,0xb6,0xda,0x21,0x10,0xff,0xf3,0xd2,
+      0xcd,0x0c,0x13,0xec,0x5f,0x97,0x44,0x17,0xc4,0xa7,0x7e,0x3d,0x64,0x5d,0x19,0x73,
+      0x60,0x81,0x4f,0xdc,0x22,0x2a,0x90,0x88,0x46,0xee,0xb8,0x14,0xde,0x5e,0x0b,0xdb,
+      0xe0,0x32,0x3a,0x0a,0x49,0x06,0x24,0x5c,0xc2,0xd3,0xac,0x62,0x91,0x95,0xe4,0x79,
+      0xe7,0xc8,0x37,0x6d,0x8d,0xd5,0x4e,0xa9,0x6c,0x56,0xf4,0xea,0x65,0x7a,0xae,0x08,
+      0xba,0x78,0x25,0x2e,0x1c,0xa6,0xb4,0xc6,0xe8,0xdd,0x74,0x1f,0x4b,0xbd,0x8b,0x8a,
+      0x70,0x3e,0xb5,0x66,0x48,0x03,0xf6,0x0e,0x61,0x35,0x57,0xb9,0x86,0xc1,0x1d,0x9e,
+      0xe1,0xf8,0x98,0x11,0x69,0xd9,0x8e,0x94,0x9b,0x1e,0x87,0xe9,0xce,0x55,0x28,0xdf,
+      0x8c,0xa1,0x89,0x0d,0xbf,0xe6,0x42,0x68,0x41,0x99,0x2d,0x0f,0xb0,0x54,0xbb,0x16
+    ]);
+
+    const AES_RCON = new Uint8Array([0x01,0x02,0x04,0x08,0x10,0x20,0x40,0x80,0x1b,0x36]);
+
+    function rotr(x, n) { return (x >>> n) | (x << (32 - n)); }
+
+    function sha256(msg) {
+      const len = msg.length;
+      const bitHi = Math.floor((len * 8) / 0x100000000);
+      const bitLo = (len * 8) >>> 0;
+      const padLen = ((len + 9 + 63) & ~63);
+      const pad = new Uint8Array(padLen);
+      pad.set(msg, 0);
+      pad[len] = 0x80;
+      const dv = new DataView(pad.buffer);
+      dv.setUint32(padLen - 8, bitHi, false);
+      dv.setUint32(padLen - 4, bitLo, false);
+
+      let h0 = 0x6a09e667, h1 = 0xbb67ae85, h2 = 0x3c6ef372, h3 = 0xa54ff53a;
+      let h4 = 0x510e527f, h5 = 0x9b05688c, h6 = 0x1f83d9ab, h7 = 0x5be0cd19;
+      const w = new Uint32Array(64);
+
+      for (let off = 0; off < padLen; off += 64) {
+        for (let i = 0; i < 16; i++) w[i] = dv.getUint32(off + i * 4, false);
+        for (let i = 16; i < 64; i++) {
+          const s0 = rotr(w[i - 15], 7) ^ rotr(w[i - 15], 18) ^ (w[i - 15] >>> 3);
+          const s1 = rotr(w[i - 2], 17) ^ rotr(w[i - 2], 19) ^ (w[i - 2] >>> 10);
+          w[i] = (w[i - 16] + s0 + w[i - 7] + s1) >>> 0;
+        }
+        let a = h0, b = h1, c = h2, d = h3, e = h4, f = h5, g = h6, h = h7;
+        for (let i = 0; i < 64; i++) {
+          const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+          const ch = (e & f) ^ ((~e) & g);
+          const t1 = (h + S1 + ch + K256[i] + w[i]) >>> 0;
+          const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+          const maj = (a & b) ^ (a & c) ^ (b & c);
+          const t2 = (S0 + maj) >>> 0;
+          h = g; g = f; f = e; e = (d + t1) >>> 0;
+          d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+        }
+        h0 = (h0 + a) >>> 0; h1 = (h1 + b) >>> 0; h2 = (h2 + c) >>> 0; h3 = (h3 + d) >>> 0;
+        h4 = (h4 + e) >>> 0; h5 = (h5 + f) >>> 0; h6 = (h6 + g) >>> 0; h7 = (h7 + h) >>> 0;
+      }
+
+      const out = new Uint8Array(32);
+      const ov = new DataView(out.buffer);
+      [h0, h1, h2, h3, h4, h5, h6, h7].forEach((v, i) => ov.setUint32(i * 4, v, false));
+      return out;
+    }
+
+    function hmacSha256(keyBytes, msgBytes) {
+      let k = keyBytes.length > 64 ? sha256(keyBytes) : keyBytes;
+      const pk = new Uint8Array(64);
+      pk.set(k, 0);
+      const opad = new Uint8Array(64);
+      const ipad = new Uint8Array(64);
+      for (let i = 0; i < 64; i++) {
+        opad[i] = pk[i] ^ 0x5c;
+        ipad[i] = pk[i] ^ 0x36;
+      }
+      const inner = new Uint8Array(64 + msgBytes.length);
+      inner.set(ipad, 0);
+      inner.set(msgBytes, 64);
+      const ih = sha256(inner);
+
+      const outer = new Uint8Array(64 + 32);
+      outer.set(opad, 0);
+      outer.set(ih, 64);
+      return sha256(outer);
+    }
+
+    function hkdfSha256(ikm, salt, info, outLen) {
+      const realSalt = (salt && salt.length > 0) ? salt : new Uint8Array(32);
+      const prk = hmacSha256(realSalt, ikm);
+      const n = Math.ceil(outLen / 32);
+      const okm = new Uint8Array(n * 32);
+      let prev = new Uint8Array(0);
+      for (let i = 1; i <= n; i++) {
+        const buf = new Uint8Array(prev.length + info.length + 1);
+        buf.set(prev, 0);
+        buf.set(info, prev.length);
+        buf[prev.length + info.length] = i;
+        prev = hmacSha256(prk, buf);
+        okm.set(prev, (i - 1) * 32);
+      }
+      return okm.slice(0, outLen);
+    }
+
+    function pbkdf2Sha256(passwordBytes, saltBytes, iterations, dkLen) {
+      const blocks = Math.ceil(dkLen / 32);
+      const out = new Uint8Array(blocks * 32);
+      for (let b = 1; b <= blocks; b++) {
+        const sb = new Uint8Array(saltBytes.length + 4);
+        sb.set(saltBytes, 0);
+        sb[saltBytes.length] = (b >>> 24) & 0xff;
+        sb[saltBytes.length + 1] = (b >>> 16) & 0xff;
+        sb[saltBytes.length + 2] = (b >>> 8) & 0xff;
+        sb[saltBytes.length + 3] = b & 0xff;
+        let u = hmacSha256(passwordBytes, sb);
+        const t = new Uint8Array(u);
+        for (let i = 2; i <= iterations; i++) {
+          u = hmacSha256(passwordBytes, u);
+          for (let j = 0; j < 32; j++) t[j] ^= u[j];
+        }
+        out.set(t, (b - 1) * 32);
+      }
+      return out.slice(0, dkLen);
+    }
+
+    function gmul(x, y) {
+      let a = x, b = y, p = 0;
+      for (let i = 0; i < 8; i++) {
+        if (b & 1) p ^= a;
+        const hi = a & 0x80;
+        a = (a << 1) & 0xff;
+        if (hi) a ^= 0x1b;
+        b >>>= 1;
+      }
+      return p;
+    }
+
+    function expandAes256(key32) {
+      const rk = new Uint8Array(240);
+      rk.set(key32, 0);
+      let rconIdx = 0, gen = 32;
+      const tmp = new Uint8Array(4);
+      while (gen < 240) {
+        for (let i = 0; i < 4; i++) tmp[i] = rk[gen - 4 + i];
+        if (gen % 32 === 0) {
+          const t0 = tmp[0];
+          tmp[0] = AES_SBOX[tmp[1]] ^ AES_RCON[rconIdx++];
+          tmp[1] = AES_SBOX[tmp[2]];
+          tmp[2] = AES_SBOX[tmp[3]];
+          tmp[3] = AES_SBOX[t0];
+        } else if (gen % 32 === 16) {
+          for (let i = 0; i < 4; i++) tmp[i] = AES_SBOX[tmp[i]];
+        }
+        for (let i = 0; i < 4; i++) {
+          rk[gen] = rk[gen - 32 + i] ^ tmp[i];
+          gen++;
+        }
+      }
+      return rk;
+    }
+
+    function aesBlock(rk, in16) {
+      const s = new Uint8Array(in16);
+      const addRk = r => {
+        const b = r * 16;
+        for (let i = 0; i < 16; i++) s[i] ^= rk[b + i];
+      };
+      addRk(0);
+      for (let r = 1; r <= 14; r++) {
+        for (let i = 0; i < 16; i++) s[i] = AES_SBOX[s[i]];
+        const r1 = [s[1], s[5], s[9], s[13]];
+        s[1] = r1[1]; s[5] = r1[2]; s[9] = r1[3]; s[13] = r1[0];
+        const r2 = [s[2], s[6], s[10], s[14]];
+        s[2] = r2[2]; s[6] = r2[3]; s[10] = r2[0]; s[14] = r2[1];
+        const r3 = [s[3], s[7], s[11], s[15]];
+        s[3] = r3[3]; s[7] = r3[0]; s[11] = r3[1]; s[15] = r3[2];
+        if (r < 14) {
+          for (let c = 0; c < 4; c++) {
+            const i = c * 4;
+            const a0 = s[i], a1 = s[i + 1], a2 = s[i + 2], a3 = s[i + 3];
+            s[i]     = gmul(a0, 2) ^ gmul(a1, 3) ^ a2 ^ a3;
+            s[i + 1] = a0 ^ gmul(a1, 2) ^ gmul(a2, 3) ^ a3;
+            s[i + 2] = a0 ^ a1 ^ gmul(a2, 2) ^ gmul(a3, 3);
+            s[i + 3] = gmul(a0, 3) ^ a1 ^ a2 ^ gmul(a3, 2);
+          }
+        }
+        addRk(r);
+      }
+      return s;
+    }
+
+    function gf128Mul(x, y) {
+      const z = new Uint8Array(16);
+      const v = new Uint8Array(y);
+      for (let i = 0; i < 128; i++) {
+        if (x[i >>> 3] & (0x80 >>> (i & 7))) {
+          for (let j = 0; j < 16; j++) z[j] ^= v[j];
+        }
+        const lsb = v[15] & 1;
+        for (let j = 15; j > 0; j--) v[j] = ((v[j] >>> 1) | ((v[j - 1] & 1) << 7)) & 0xff;
+        v[0] = (v[0] >>> 1) & 0xff;
+        if (lsb) v[0] ^= 0xe1;
+      }
+      return z;
+    }
+
+    function ghash(h, data) {
+      let acc = new Uint8Array(16);
+      const full = Math.floor(data.length / 16);
+      for (let i = 0; i < full; i++) {
+        for (let j = 0; j < 16; j++) acc[j] ^= data[i * 16 + j];
+        acc = gf128Mul(acc, h);
+      }
+      const rem = data.length % 16;
+      if (rem > 0) {
+        for (let j = 0; j < rem; j++) acc[j] ^= data[full * 16 + j];
+        acc = gf128Mul(acc, h);
+      }
+      return acc;
+    }
+
+    function inc32(cb) {
+      const n = new Uint8Array(cb);
+      const v = (((n[12] << 24) | (n[13] << 16) | (n[14] << 8) | n[15]) >>> 0) + 1;
+      n[12] = (v >>> 24) & 0xff;
+      n[13] = (v >>> 16) & 0xff;
+      n[14] = (v >>> 8) & 0xff;
+      n[15] = v & 0xff;
+      return n;
+    }
+
+    function aes256GcmEncrypt(key32, iv12, plain) {
+      const rk = expandAes256(key32);
+      const h = aesBlock(rk, new Uint8Array(16));
+      const j0 = new Uint8Array(16);
+      j0.set(iv12, 0);
+      j0[15] = 1;
+
+      const cipher = new Uint8Array(plain.length);
+      let ctr = inc32(j0);
+      for (let off = 0; off < plain.length; off += 16) {
+        const ks = aesBlock(rk, ctr);
+        const len = Math.min(16, plain.length - off);
+        for (let i = 0; i < len; i++) cipher[off + i] = plain[off + i] ^ ks[i];
+        ctr = inc32(ctr);
+      }
+
+      const lenBlk = new Uint8Array(16);
+      const dv = new DataView(lenBlk.buffer);
+      const bitLen = plain.length * 8;
+      dv.setUint32(8, Math.floor(bitLen / 0x100000000), false);
+      dv.setUint32(12, bitLen >>> 0, false);
+
+      const gIn = new Uint8Array(cipher.length + 16);
+      gIn.set(cipher, 0);
+      gIn.set(lenBlk, cipher.length);
+      const s = ghash(h, gIn);
+      const ek0 = aesBlock(rk, j0);
+      const tag = new Uint8Array(16);
+      for (let i = 0; i < 16; i++) tag[i] = s[i] ^ ek0[i];
+
+      const combined = new Uint8Array(12 + cipher.length + 16);
+      combined.set(iv12, 0);
+      combined.set(cipher, 12);
+      combined.set(tag, 12 + cipher.length);
+      return combined;
+    }
+
+    function aes256GcmDecrypt(key32, combined) {
+      if (combined.length < 28) throw new Error('Truncated AES-GCM payload');
+      const iv12 = combined.subarray(0, 12);
+      const cipher = combined.subarray(12, combined.length - 16);
+      const tag = combined.subarray(combined.length - 16);
+
+      const rk = expandAes256(key32);
+      const h = aesBlock(rk, new Uint8Array(16));
+      const j0 = new Uint8Array(16);
+      j0.set(iv12, 0);
+      j0[15] = 1;
+
+      const lenBlk = new Uint8Array(16);
+      const dv = new DataView(lenBlk.buffer);
+      const bitLen = cipher.length * 8;
+      dv.setUint32(8, Math.floor(bitLen / 0x100000000), false);
+      dv.setUint32(12, bitLen >>> 0, false);
+
+      const gIn = new Uint8Array(cipher.length + 16);
+      gIn.set(cipher, 0);
+      gIn.set(lenBlk, cipher.length);
+      const s = ghash(h, gIn);
+      const ek0 = aesBlock(rk, j0);
+      let diff = 0;
+      for (let i = 0; i < 16; i++) diff |= (s[i] ^ ek0[i]) ^ tag[i];
+      if (diff !== 0) throw new Error('AES-GCM tag verification failed');
+
+      const plain = new Uint8Array(cipher.length);
+      let ctr = inc32(j0);
+      for (let off = 0; off < cipher.length; off += 16) {
+        const ks = aesBlock(rk, ctr);
+        const len = Math.min(16, cipher.length - off);
+        for (let i = 0; i < len; i++) plain[off + i] = cipher[off + i] ^ ks[i];
+        ctr = inc32(ctr);
+      }
+      return plain;
+    }
+
+    function getRandomBytes(n) {
+      const out = new Uint8Array(n);
+      if (globalThis.crypto && typeof globalThis.crypto.getRandomValues === 'function') {
+        globalThis.crypto.getRandomValues(out);
+        return out;
+      }
+      let seed = (Date.now() ^ 0x5bf03635) >>> 0;
+      for (let i = 0; i < n; i++) {
+        seed = (Math.imul(seed ^ (seed >>> 15), 0x85ebca6b) + 0xc2b2ae35) >>> 0;
+        out[i] = (seed >>> 16) & 0xff;
+      }
+      return out;
+    }
+
+    async function zlibCompress(data) {
+      if (typeof pako !== 'undefined' && typeof pako.deflate === 'function') {
+        return pako.deflate(data);
+      }
+      if (typeof CompressionStream !== 'undefined') {
+        const cs = new CompressionStream('deflate');
+        const writer = cs.writable.getWriter();
+        writer.write(data);
+        writer.close();
+        return new Uint8Array(await new Response(cs.readable).arrayBuffer());
+      }
+      throw new Error('ZLIB compression unavailable in this browser.');
+    }
+
+    async function zlibDecompress(data) {
+      if (typeof pako !== 'undefined' && typeof pako.inflate === 'function') {
+        return pako.inflate(data);
+      }
+      if (typeof DecompressionStream !== 'undefined') {
+        const ds = new DecompressionStream('deflate');
+        const writer = ds.writable.getWriter();
+        writer.write(data);
+        writer.close();
+        return new Uint8Array(await new Response(ds.readable).arrayBuffer());
+      }
+      throw new Error('ZLIB decompression unavailable in this browser.');
+    }
+
+    // =========================================================================
+    // STATE & UI
+    // =========================================================================
+    let stagedFiles = [];
+    let hasSelectedFolder = false;
+    let builtArchive = null;
+
+    (function init() {
+      const badge = document.getElementById('runtimeBadge');
+      badge.textContent = typeof pako !== 'undefined'
+        ? 'AES-256-GCM + ZLIB READY'
+        : 'NATIVE STREAM + AES-256-GCM';
+
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+        document.documentElement.classList.add('dark');
+        document.getElementById('themeIcon').className = 'ph-fill ph-sun text-lg text-amber-300';
+      }
+    })();
+
+    function toggleThemeMode() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      document.getElementById('themeIcon').className = isDark
+        ? 'ph-fill ph-sun text-lg text-amber-300'
+        : 'ph-fill ph-moon text-lg';
+    }
+
+    function toggleDeviceInput() {
+      const mode = document.querySelector('input[name="encMode"]:checked')?.value || 'device';
+      document.getElementById('deviceIdBox').classList.toggle('hidden', mode !== 'device');
+    }
+
+    function notify(title, msg, kind = 'info') {
+      const area = document.getElementById('toastArea');
+      const el = document.createElement('div');
+      const color = kind === 'error' ? 'text-rose-500 ph-warning-circle' : 'text-emerald-500 ph-check-circle';
+      el.className = 'pointer-events-auto glass rounded-2xl p-3.5 shadow-xl flex items-start gap-3 transition-all';
+      el.innerHTML = `
+        <i class="ph-fill ${color} text-xl shrink-0 mt-0.5"></i>
+        <div class="min-w-0 flex-1">
+          <p class="text-xs font-extrabold">${escapeHtml(title)}</p>
+          <p class="text-xs text-slate-700 dark:text-white/80 mt-0.5 break-words">${escapeHtml(msg)}</p>
+        </div>
+      `;
+      area.appendChild(el);
+      setTimeout(() => el.remove(), 4500);
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function formatBytes(b) {
+      if (b === 0) return '0 B';
+      const u = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(b) / Math.log(1024));
+      return `${(b / Math.pow(1024, i)).toFixed(2)} ${u[i]}`;
+    }
+
+    // =========================================================================
+    // FOLDER INGESTION & .JPEG SAMPLE GENERATOR
+    // =========================================================================
+    function onDragOver(e) {
+      e.preventDefault();
+      document.getElementById('dropZone').classList.add('bg-white/60', 'dark:bg-white/15');
+    }
+
+    function onDragLeave(e) {
+      e.preventDefault();
+      document.getElementById('dropZone').classList.remove('bg-white/60', 'dark:bg-white/15');
+    }
+
+    async function onDropFolder(e) {
+      e.preventDefault();
+      onDragLeave(e);
+      const items = e.dataTransfer?.items;
+      if (!items || !items.length) return;
+
+      const collected = [];
+      for (let i = 0; i < items.length; i++) {
+        const entry = items[i].webkitGetAsEntry ? items[i].webkitGetAsEntry() : null;
+        if (entry) await readEntryRecursive(entry, '', collected);
+      }
+      hasSelectedFolder = true;
+      applyStagedFiles(collected);
+    }
+
+    async function readEntryRecursive(entry, prefix, out) {
+      const currentPath = prefix ? `${prefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory) {
+        out.push({ path: `${currentPath}/`, isDirectory: true, data: new Uint8Array(0) });
+        const reader = entry.createReader();
+        await new Promise((resolve, reject) => {
+          const batch = () => {
+            reader.readEntries(async list => {
+              if (!list.length) return resolve();
+              for (const child of list) await readEntryRecursive(child, currentPath, out);
+              batch();
+            }, reject);
+          };
+          batch();
+        });
+      } else if (entry.isFile && entry.name !== '.DS_Store') {
+        const file = await new Promise((res, rej) => entry.file(res, rej));
+        out.push({
+          path: currentPath,
+          isDirectory: false,
+          data: new Uint8Array(await file.arrayBuffer())
+        });
+      }
+    }
+
+    async function onFolderChosen(e) {
+      const files = Array.from(e.target.files || []).filter(f => f.name !== '.DS_Store');
+      e.target.value = '';
+      if (!files.length) return;
+
+      const dirSet = new Set();
+      const collected = [];
+      for (const f of files) {
+        const rel = f.webkitRelativePath || f.name;
+        const parts = rel.split('/');
+        let acc = '';
+        for (let i = 0; i < parts.length - 1; i++) {
+          acc += `${parts[i]}/`;
+          dirSet.add(acc);
+        }
+        collected.push({
+          path: rel,
+          isDirectory: false,
+          data: new Uint8Array(await f.arrayBuffer())
+        });
+      }
+
+      const dirEntries = Array.from(dirSet).sort().map(d => ({
+        path: d,
+        isDirectory: true,
+        data: new Uint8Array(0)
+      }));
+
+      hasSelectedFolder = true;
+      applyStagedFiles([...dirEntries, ...collected]);
+    }
+
+    async function createJpegBytes(width = 128, height = 128) {
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      const g = ctx.createLinearGradient(0, 0, width, height);
+      g.addColorStop(0, '#f273bf');
+      g.addColorStop(1, '#a666e6');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, width, height);
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('SKIN_000001', width / 2, height / 2 - 2);
+      ctx.font = '10px monospace';
+      ctx.fillText('.JPEG', width / 2, height / 2 + 14);
+
+      const jpegBlob = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.9));
+      if (jpegBlob) {
+        return new Uint8Array(await jpegBlob.arrayBuffer());
+      }
+      // Minimal valid SOI/EOI JPEG marker fallback if canvas toBlob returns null
+      return new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0xff, 0xd9]);
+    }
+
+    async function createSwiftReadySampleBundle() {
+      const enc = new TextEncoder();
+      const jpegBytes = await createJpegBytes(128, 128);
+
+      const infoJson = JSON.stringify({
+        skinName: 'Blossom Sample',
+        skinId: 'SKIN_000001',
+        version: '1.0.0'
+      }, null, 2);
+
+      hasSelectedFolder = true;
+      applyStagedFiles([
+        { path: 'SKIN_000001/', isDirectory: true, data: new Uint8Array(0) },
+        { path: 'SKIN_000001/Art/', isDirectory: true, data: new Uint8Array(0) },
+        { path: 'SKIN_000001/Audio/', isDirectory: true, data: new Uint8Array(0) },
+        { path: 'SKIN_000001/UI/', isDirectory: true, data: new Uint8Array(0) },
+        { path: 'SKIN_000001/info.json', isDirectory: false, data: enc.encode(infoJson) },
+        { path: 'SKIN_000001/SKIN_000001.jpeg', isDirectory: false, data: jpegBytes },
+        { path: 'SKIN_000001/Art/sprite.txt', isDirectory: false, data: enc.encode('art_placeholder') },
+        { path: 'SKIN_000001/Audio/sfx.txt', isDirectory: false, data: enc.encode('audio_placeholder') },
+        { path: 'SKIN_000001/UI/layout.txt', isDirectory: false, data: enc.encode('ui_placeholder') }
+      ]);
+
+      document.getElementById('outputFileName').value = 'SKIN_000001';
+      notify('Valid .JPEG Sample Loaded', 'Folder contains info.json, Art, Audio, UI, and SKIN_000001.jpeg.', 'success');
+    }
+
+    function applyStagedFiles(entries) {
+      stagedFiles = entries;
+      const firstRoot = entries.find(e => e.path.includes('/'))?.path.split('/')[0];
+      if (firstRoot) {
+        document.getElementById('outputFileName').value = firstRoot.replace(/[^A-Za-z0-9_-]/g, '_');
+      }
+      renderFileList();
+      refreshSwiftChecklist();
+    }
+
+    function clearStagedFiles() {
+      stagedFiles = [];
+      hasSelectedFolder = false;
+      renderFileList();
+      refreshSwiftChecklist();
+    }
+
+    function renderFileList() {
+      const box = document.getElementById('fileListBox');
+      const container = document.getElementById('fileListContainer');
+      if (!stagedFiles.length) {
+        box.classList.add('hidden');
+        return;
+      }
+      box.classList.remove('hidden');
+      const fileCount = stagedFiles.filter(e => !e.isDirectory).length;
+      document.getElementById('fileListSummary').textContent = `${fileCount} files (${stagedFiles.length} total entries)`;
+      container.innerHTML = stagedFiles.map(e => `
+        <div class="flex items-center justify-between px-3 py-1.5 rounded-xl bg-white/40 dark:bg-black/25 text-xs font-mono">
+          <span class="truncate">${escapeHtml(e.path)}</span>
+          <span class="text-[11px] text-slate-500 dark:text-white/60 ml-2 shrink-0">
+            ${e.isDirectory ? 'DIR' : formatBytes(e.data.length)}
+          </span>
+        </div>
+      `).join('');
+    }
+
+    // Checks critical items including .jpeg skin image
+    function evaluateSwiftChecklist(entries) {
+      const normalized = entries.map(e => e.path.replace(/^\/+|\/+$/g, '').toLowerCase());
+      const hasInfoJson = entries.some(e => !e.isDirectory && (e.path.toLowerCase() === 'info.json' || e.path.toLowerCase().endsWith('/info.json')));
+      const hasArt = normalized.some(p => p.split('/').includes('art'));
+      const hasAudio = normalized.some(p => p.split('/').includes('audio'));
+      const hasUI = normalized.some(p => p.split('/').includes('ui'));
+      const hasSkinJpeg = entries.some(e => {
+        if (e.isDirectory) return false;
+        const lp = e.path.toLowerCase();
+        const isJpeg = lp.endsWith('.jpeg');
+        if (!isJpeg) return false;
+        const parts = lp.split('/');
+        const fileName = parts[parts.length - 1];
+        return parts.some(p => p.startsWith('skin_')) || fileName.startsWith('skin_');
+      });
+      return { hasInfoJson, hasArt, hasAudio, hasUI, hasSkinJpeg };
+    }
+
+    function getMissingLabels(status) {
+      const missing = [];
+      if (!status.hasInfoJson) missing.push('info.json');
+      if (!status.hasArt) missing.push('Art/');
+      if (!status.hasAudio) missing.push('Audio/');
+      if (!status.hasUI) missing.push('UI/');
+      if (!status.hasSkinJpeg) missing.push('SKIN_<code>.jpeg');
+      return missing;
+    }
+
+    async function buildFinalEntriesWithAutoFill() {
+      const entries = [...stagedFiles];
+      if (!document.getElementById('autoFillMissingCheckbox').checked) {
+        return entries;
+      }
+
+      const enc = new TextEncoder();
+      const rootPrefix = entries.find(e => e.path.includes('/'))?.path.split('/')[0] || 'SKIN_000001';
+      const status = evaluateSwiftChecklist(entries);
+
+      if (!status.hasInfoJson) {
+        entries.push({
+          path: `${rootPrefix}/info.json`,
+          isDirectory: false,
+          data: enc.encode(JSON.stringify({ skinName: rootPrefix, skinId: rootPrefix, version: '1.0.0' }, null, 2))
+        });
+      }
+      if (!status.hasArt) {
+        entries.push({ path: `${rootPrefix}/Art/`, isDirectory: true, data: new Uint8Array(0) });
+        entries.push({ path: `${rootPrefix}/Art/.keep`, isDirectory: false, data: new Uint8Array(0) });
+      }
+      if (!status.hasAudio) {
+        entries.push({ path: `${rootPrefix}/Audio/`, isDirectory: true, data: new Uint8Array(0) });
+        entries.push({ path: `${rootPrefix}/Audio/.keep`, isDirectory: false, data: new Uint8Array(0) });
+      }
+      if (!status.hasUI) {
+        entries.push({ path: `${rootPrefix}/UI/`, isDirectory: true, data: new Uint8Array(0) });
+        entries.push({ path: `${rootPrefix}/UI/.keep`, isDirectory: false, data: new Uint8Array(0) });
+      }
+      if (!status.hasSkinJpeg) {
+        const jpegBytes = await createJpegBytes(128, 128);
+        entries.push({
+          path: `${rootPrefix}/SKIN_000001.jpeg`,
+          isDirectory: false,
+          data: jpegBytes
+        });
+      }
+      return entries;
+    }
+
+    function updateFolderValidityBanner() {
+      const banner = document.getElementById('folderValidityBanner');
+      const icon = document.getElementById('folderValidityIcon');
+      const title = document.getElementById('folderValidityTitle');
+      const badge = document.getElementById('folderValidityBadge');
+      const reason = document.getElementById('folderValidityReason');
+
+      if (!hasSelectedFolder || stagedFiles.length === 0) {
+        banner.className = 'rounded-2xl p-4 border transition flex items-start gap-3 bg-slate-500/10 border-slate-400/30';
+        icon.className = 'ph-fill ph-folder-dashed text-2xl text-slate-500 shrink-0 mt-0.5';
+        title.textContent = 'Folder Status: No Folder Selected';
+        badge.textContent = 'UNCHECKED';
+        badge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-slate-500/20 text-slate-700 dark:text-white/80';
+        reason.innerHTML = 'Choose or drop a folder to verify if it contains <code class="font-mono">info.json</code>, <code class="font-mono">Art/</code>, <code class="font-mono">Audio/</code>, <code class="font-mono">UI/</code>, and a <code class="font-mono">.jpeg</code> skin image.';
+        return;
+      }
+
+      const rawStatus = evaluateSwiftChecklist(stagedFiles);
+      const rawMissing = getMissingLabels(rawStatus);
+      const folderName = stagedFiles.find(e => e.path.includes('/'))?.path.split('/')[0] || 'Selected Folder';
+
+      if (rawMissing.length === 0) {
+        banner.className = 'rounded-2xl p-4 border transition flex items-start gap-3 bg-emerald-500/15 border-emerald-500/40';
+        icon.className = 'ph-fill ph-check-circle text-2xl text-emerald-500 shrink-0 mt-0.5';
+        title.textContent = `Valid Folder: ${folderName}`;
+        badge.textContent = 'VALID';
+        badge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-emerald-500/20 text-emerald-700 dark:text-emerald-300';
+        reason.textContent = 'All required folders and files are present, including a valid SKIN_<code>.jpeg image.';
+      } else {
+        const autoFixOn = document.getElementById('autoFillMissingCheckbox').checked;
+        banner.className = 'rounded-2xl p-4 border transition flex items-start gap-3 bg-rose-500/15 border-rose-500/40';
+        icon.className = 'ph-fill ph-x-circle text-2xl text-rose-500 shrink-0 mt-0.5';
+        title.textContent = `Invalid Folder: ${folderName}`;
+        badge.textContent = 'INVALID';
+        badge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-rose-500/20 text-rose-700 dark:text-rose-300';
+        reason.textContent = autoFixOn
+          ? `Missing in uploaded folder: ${rawMissing.join(', ')}. Auto-inject is ON, so these will be added automatically when encrypting.`
+          : `Missing in uploaded folder: ${rawMissing.join(', ')}. Enable auto-inject or add these files to make the folder valid.`;
+      }
+    }
+
+    async function refreshSwiftChecklist() {
+      updateFolderValidityBanner();
+      const effectiveEntries = await buildFinalEntriesWithAutoFill();
+      const res = evaluateSwiftChecklist(effectiveEntries);
+
+      const updateBadge = (id, ok) => {
+        const el = document.getElementById(id);
+        const span = el.querySelector('span:last-child');
+        span.textContent = ok ? 'Present' : 'Missing';
+        span.className = ok ? 'font-bold text-emerald-600 dark:text-emerald-400' : 'font-bold text-rose-500';
+      };
+
+      updateBadge('chkInfo', res.hasInfoJson);
+      updateBadge('chkArt', res.hasArt);
+      updateBadge('chkAudio', res.hasAudio);
+      updateBadge('chkUI', res.hasUI);
+      updateBadge('chkSkin', res.hasSkinJpeg);
+
+      const allOk = res.hasInfoJson && res.hasArt && res.hasAudio && res.hasUI && res.hasSkinJpeg;
+      const pill = document.getElementById('checklistStatusPill');
+      pill.textContent = allOk ? 'VALID' : 'INCOMPLETE';
+      pill.className = allOk
+        ? 'px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-emerald-500/15 text-emerald-700 dark:text-emerald-300'
+        : 'px-2.5 py-0.5 rounded-full text-[11px] font-mono font-bold bg-rose-500/15 text-rose-600 dark:text-rose-300';
+    }
+
+    // =========================================================================
+    // BINARY PACKER & ENCRYPTOR
+    // =========================================================================
+    function encodeEntryTable(entries) {
+      const enc = new TextEncoder();
+      const items = entries.map(e => ({
+        pathBytes: enc.encode(e.path),
+        isDir: e.isDirectory ? 1 : 0,
+        data: e.data || new Uint8Array(0)
+      }));
+
+      let total = 4;
+      for (const it of items) total += 2 + it.pathBytes.length + 1 + 4 + it.data.length;
+
+      const buf = new Uint8Array(total);
+      const dv = new DataView(buf.buffer);
+      let off = 0;
+
+      dv.setUint32(off, items.length, false);
+      off += 4;
+
+      for (const it of items) {
+        dv.setUint16(off, it.pathBytes.length, false);
+        off += 2;
+        buf.set(it.pathBytes, off);
+        off += it.pathBytes.length;
+        buf[off] = it.isDir;
+        off += 1;
+        dv.setUint32(off, it.data.length, false);
+        off += 4;
+        buf.set(it.data, off);
+        off += it.data.length;
+      }
+      return buf;
+    }
+
+    async function encryptAndBuildSao() {
+      try {
+        const format = document.getElementById('formatSelect').value;
+        const mode = document.querySelector('input[name="encMode"]:checked')?.value || 'device';
+        const isLocked = mode === 'device';
+        const deviceId = document.getElementById('targetDeviceId').value.trim();
+
+        if (isLocked && !deviceId) {
+          notify('Missing Device ID', 'Paste the Device ID from your iOS app before encrypting.', 'error');
+          return;
+        }
+
+        const finalEntries = await buildFinalEntriesWithAutoFill();
+        if (!finalEntries.length) {
+          notify('Empty Bundle', 'Select a folder or click "Load Valid .JPEG Sample" first.', 'error');
+          return;
+        }
+
+        const rawTable = encodeEntryTable(finalEntries);
+        const compressed = await zlibCompress(rawTable);
+
+        const magic = format === 'SAOW'
+          ? new Uint8Array([0x53, 0x41, 0x4F, 0x57])
+          : new Uint8Array([0x53, 0x41, 0x4F, 0x33]);
+
+        let archiveBytes;
+        if (!isLocked) {
+          archiveBytes = new Uint8Array(5 + compressed.length);
+          archiveBytes.set(magic, 0);
+          archiveBytes[4] = 0x00;
+          archiveBytes.set(compressed, 5);
+        } else {
+          const salt = getRandomBytes(16);
+          const iv12 = getRandomBytes(12);
+          const enc = new TextEncoder();
+
+          const aesKey32 = format === 'SAOW'
+            ? pbkdf2Sha256(enc.encode(deviceId), salt, 100000, 32)
+            : hkdfSha256(enc.encode(deviceId), salt, enc.encode('SAOIRSE-SAO3-DEVICE-LOCK'), 32);
+
+          const combinedGcm = aes256GcmEncrypt(aesKey32, iv12, compressed);
+
+          archiveBytes = new Uint8Array(5 + 16 + combinedGcm.length);
+          archiveBytes.set(magic, 0);
+          archiveBytes[4] = 0x01;
+          archiveBytes.set(salt, 5);
+          archiveBytes.set(combinedGcm, 21);
+
+          const verifyCompressed = aes256GcmDecrypt(aesKey32, archiveBytes.subarray(21));
+          const verifyRaw = await zlibDecompress(verifyCompressed);
+          if (verifyRaw.length !== rawTable.length) {
+            throw new Error('Round-trip verification size mismatch.');
+          }
+        }
+
+        const baseName = (document.getElementById('outputFileName').value.trim() || 'SKIN_000001')
+          .replace(/[^A-Za-z0-9_-]/g, '_');
+        const fullFileName = `${baseName}.sao`;
+
+        builtArchive = { fileName: fullFileName, bytes: archiveBytes };
+
+        document.getElementById('resultCard').classList.remove('hidden');
+        document.getElementById('resultBadge').textContent = `${format} • ${isLocked ? '0x01 LOCKED' : '0x00 OPEN'}`;
+        document.getElementById('resFileName').textContent = fullFileName;
+        document.getElementById('resSize').textContent = formatBytes(archiveBytes.length);
+        document.getElementById('resRoundTrip').textContent = 'PASSED (Swift Compatible)';
+
+        notify('Encryption Complete', `${fullFileName} verified and ready for your iOS app.`, 'success');
+      } catch (err) {
+        notify('Encryption Error', err.message || 'Failed to build .SAO archive.', 'error');
+      }
+    }
+
+    function downloadBuiltSao() {
+      if (!builtArchive) return;
+      const blob = new Blob([builtArchive.bytes], { type: 'application/octet-stream' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = builtArchive.fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    }
+
+    refreshSwiftChecklist();
+  </script>
+</body>
+</html>

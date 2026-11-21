@@ -112,7 +112,7 @@ const dashboard = `<!doctype html>
 
 app.get("/encrypt", (req, res) => {
   var k = req.query.pass
-  if (k !=== process.env.ENC_PASSWORD || !k) { return res.send("Error unauthorized.") }
+  if (k !== process.env.ENC_PASSWORD || !k) { return res.send("Error unauthorized.") }
   res.send("./saoirse.html")
 })
 

@@ -1,19 +1,31 @@
 # Saoirse's Tool
 
-A JSON-only, POST-only Node.js device whitelist server with an administrator dashboard.
+Express-based whitelist checker and browser-side `.SAO` packager.
 
-## Run
+## Start
 
-```bash
-ADMIN_TOKEN="replace-with-a-long-secret" WHITELISTED_DEVICES="device-001,device-002" npm start
+```sh
+npm install
+ADMIN_KEY='set-a-long-admin-secret' ENC_PASSWORD='set-a-separate-long-page-password' npm start
 ```
 
-The admin dashboard is available at `POST /rpo`.
+Open `http://localhost:3000/enc`; the browser requests the `ENC_PASSWORD` via HTTP Basic Auth. Use HTTPS when exposed beyond localhost. Do not hard-code the password into source or commit it.
 
-## API
+The encryptor processes files locally in the browser. It requires Web Crypto and Compression Streams (modern browsers over HTTPS or localhost).
 
-- `POST /check.json` — check a device: `{"deviceId":"device-001"}`
-- `POST /admin/data.json` — view device data (requires admin bearer token)
-- `POST /admin/action.json` — add, remove, blacklist, or unblacklist a device
+## Device check
 
-Whitelist and attempt data is currently stored in memory and resets when the server restarts.
+`POST /check` with `Content-Type: application/json` and body:
+
+```json
+{"deviceId":"your-device-id"}
+```
+
+## Admin API
+
+Admin endpoints require `Authorization: Bearer <ADMIN_KEY>`:
+
+- `POST /admin/data.json`
+- `POST /admin/action.json` with `{"action":"add|remove|blacklist|unblacklist","deviceId":"..."}`
+
+Whitelist data is stored in `whitelist.json`; blacklist and attempt history are currently in memory.
